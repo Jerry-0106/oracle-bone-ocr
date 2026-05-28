@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env/
+
+# PyTorch
+*.pth
+*.pt
+!checkpoints/*.pt
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+.history/
+
+# IDE - PyCharm
+.idea/
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+._*
+
+# Logs
+*.log
+logs/
+
+# Ultralytics / YOLO
+runs/
+wandb/
+
+# Dataset (user must download separately)
+dataset_raw/
+dataset_yolo*/
+train/
+val/
+data/
+
+# Backup
+backup_unused/
+
+# Environment
+.env
+.env.local

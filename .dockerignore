@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.dockerignore
+
+# Outputs (generated at runtime)
+output/
+outputs/
+outputs_seg/
+
+# Logs
+*.log
+logs/
+
+# Jupyter / IDE
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Virtual env
+venv/
+.venv/
+env/
+
+# Training artifacts
+checkpoints/
+runs/
+*.pth
+
+# Temporary
+tmp/
+*.tmp
+
+# Documentation
+README.md

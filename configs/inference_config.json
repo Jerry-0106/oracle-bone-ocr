@@ -1,0 +1,37 @@
+{
+  "model": "competition_final/weights/best.pt",
+  "model_info": {
+    "architecture": "YOLOv8n",
+    "params": "3.1M",
+    "mAP50": 0.477,
+    "mAP50_95": 0.254,
+    "f1_optimized": 0.651
+  },
+  "practical": {
+    "conf": 0.10,
+    "iou": 0.3,
+    "imgsz": 640,
+    "augment": true,
+    "device": "mps",
+    "max_det": 300
+  },
+  "max_f1": {
+    "conf": 0.15,
+    "iou": 0.2,
+    "imgsz": 768,
+    "augment": true,
+    "device": "mps",
+    "max_det": 300
+  },
+  "post_process": {
+    "min_area_pct": 0.5,
+    "aspect_ratio_min": 0.3,
+    "aspect_ratio_max": 3.0,
+    "edge_margin_pct": 2.0
+  },
+  "tta": {
+    "augment": true,
+    "flip_lr": false,
+    "flip_ud": false
+  }
+}

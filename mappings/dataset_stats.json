@@ -1,0 +1,12 @@
+{
+  "num_classes": 1588,
+  "total_samples": 77064,
+  "avg_per_class": 48.5,
+  "min_samples": 1,
+  "max_samples": 357,
+  "median_samples": 35,
+  "classes_with_1_sample": 55,
+  "classes_with_lt_5_samples": 211,
+  "classes_with_lt_10_samples": 329,
+  "class_imbalance_ratio": 357.0
+}
