@@ -25,37 +25,47 @@ if torch.cuda.is_available():
 from ultralytics import YOLO
 
 # ── paths ──
-PROJECT_ROOT = Path(__file__).resolve().parent
+# __file__ is scripts/infer.py, so parent.parent = project root
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 INPUT_DIR  = Path(os.getenv("INPUT_DIR", str(PROJECT_ROOT / "demo")))
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(PROJECT_ROOT)))
 OUTPUT_JSON = OUTPUT_DIR / "prediction.json"
 
 # ── model paths ──
-DETECTOR_PATH   = PROJECT_ROOT / "checkpoints" / "detector_v5.pt"
-RECOGNIZER_PATH = PROJECT_ROOT / "checkpoints" / "recognizer.pt"
+# Phase 2: YOLO11s detector trained at 1280px (mAP50=0.84)
+DETECTOR_PATH   = PROJECT_ROOT / "checkpoints" / "yolo11s_det_1280.pt"
+# Phase 4: ConvNeXt-Tiny + ArcFace recognizer (Top1=32.18%, 3483 classes)
+RECOGNIZER_PATH = PROJECT_ROOT / "checkpoints" / "convnext_arcface_best.pt"
 MAPPING_DIR     = PROJECT_ROOT / "mappings"
 
 # ── inference config ──
-CONF  = float(os.getenv("CONF", "0.32"))
+CONF  = float(os.getenv("CONF", "0.15"))
 IOU   = float(os.getenv("IOU", "0.3"))
-IMGSZ = int(os.getenv("IMGSZ", "640"))
-DEVICE_ENV = os.getenv("DEVICE", "cpu")
-DEVICE = "cuda" if DEVICE_ENV == "cuda" and torch.cuda.is_available() else "cpu"
-if DEVICE != DEVICE_ENV:
-    print(f"[competition] WARNING: DEVICE={DEVICE_ENV} requested but CUDA unavailable, using {DEVICE}")
-CROP_PADDING = 3
+IMGSZ = int(os.getenv("IMGSZ", "1280"))
+DEVICE_ENV = os.getenv("DEVICE")  # None if not set
+if DEVICE_ENV:
+    # Explicit: use requested device, fallback if unavailable
+    requested = DEVICE_ENV
+    if requested == "cuda" and not torch.cuda.is_available():
+        DEVICE = "cpu"
+        print(f"[competition] WARNING: DEVICE=cuda requested but CUDA unavailable, falling back to CPU")
+    else:
+        DEVICE = requested
+else:
+    # Auto-detect: GPU first, CPU fallback
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"[competition] DEVICE not set → auto-detected: {DEVICE}")
 BATCH_SIZE = 32
 
 
 def load_recognizer():
-    """Load EfficientNet recognizer and class mappings."""
+    """Load ConvNeXt+ArcFace recognizer and class mappings."""
     sys.path.insert(0, str(PROJECT_ROOT))
-    from src.recognizer import Recognizer
-    return Recognizer(
+    from src.recognizer import ArcFaceRecognizer
+    return ArcFaceRecognizer(
         str(RECOGNIZER_PATH),
         mapping_dir=str(MAPPING_DIR),
         device=DEVICE,
-        model_name="efficientnet_b0",
     )
 
 
@@ -161,40 +171,28 @@ def main():
                 })
 
         # Crop and batch-recognize
-        SHRINK = 0.9
+        # Dynamic padding: larger bboxes get proportionally more context
         crops = []
         crop_metas = []
         for det in char_detections:
             x1, y1, x2, y2 = det["bbox_xyxy"]
-
-            # Bbox shrink 0.9 (center-based, improves IoU)
             w = x2 - x1
             h = y2 - y1
-            cx = (x1 + x2) / 2.0
-            cy = (y1 + y2) / 2.0
-            sw = w * SHRINK
-            sh = h * SHRINK
-            sx1 = cx - sw / 2.0
-            sy1 = cy - sh / 2.0
-            sx2 = cx + sw / 2.0
-            sy2 = cy + sh / 2.0
-            # strict clamp shrunk box to image boundaries
-            sx1 = max(0.0, sx1)
-            sy1 = max(0.0, sy1)
-            sx2 = min(float(img_w), sx2)
-            sy2 = min(float(img_h), sy2)
 
-            # Crop from original bbox (with padding) for recognizer quality
-            px1 = max(0, x1 - CROP_PADDING)
-            py1 = max(0, y1 - CROP_PADDING)
-            px2 = min(img_w, x2 + CROP_PADDING)
-            py2 = min(img_h, y2 + CROP_PADDING)
+            # Dynamic padding: max(8px, 8% of max bbox dimension)
+            pad = max(8, int(0.08 * max(w, h)))
+
+            # Crop from original bbox + dynamic padding
+            px1 = max(0, x1 - pad)
+            py1 = max(0, y1 - pad)
+            px2 = min(img_w, x2 + pad)
+            py2 = min(img_h, y2 + pad)
             crop = img[py1:py2, px1:px2]
             if crop.size == 0:
                 continue
             crops.append(crop)
-            # Store shrunk bbox for output
-            crop_metas.append({"bbox_xyxy": [int(sx1), int(sy1), int(sx2), int(sy2)]})
+            # Output bbox = original YOLO bbox (no shrink)
+            crop_metas.append({"bbox_xyxy": [x1, y1, x2, y2]})
 
         # Batch recognition
         chars = []
