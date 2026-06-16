@@ -1,48 +1,33 @@
-# Python
-__pycache__/
-*.py[cod]
-*.so
-*.egg-info/
-dist/
-build/
+# Exclude training and development files
+_training/
+_audit_scripts/
+_data_prep/
+backup_unused/
+reports/
+*.md
 
-# OS
-.DS_Store
-._*
-Thumbs.db
+# Datasets (exclude large image dirs)
+datasets/detection/
+datasets/recognition/images/
+
+# Python cache
+__pycache__/
+*.pyc
 
 # Git
 .git/
-.gitignore
-.dockerignore
 
-# Outputs (generated at runtime)
-output/
-outputs/
-outputs_seg/
+# Demo output
+demo_output/
 
-# Logs
-*.log
-logs/
+# Old/unused models
+checkpoints/detector_v5.pt
+checkpoints/recognizer.pt
+checkpoints/convnext_competition_best.pt
+checkpoints/convnext_competition_last.pt
+checkpoints/convnext_hust_pretrain.pt
+checkpoints/convnext_arcface_last.pt
 
-# Jupyter / IDE
-.ipynb_checkpoints/
-.vscode/
-.idea/
-
-# Virtual env
-venv/
-.venv/
-env/
-
-# Training artifacts
-checkpoints/
-runs/
-*.pth
-
-# Temporary
-tmp/
-*.tmp
-
-# Documentation
-README.md
+# OS files
+.DS_Store
+Thumbs.db
