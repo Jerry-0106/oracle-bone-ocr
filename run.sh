@@ -2,7 +2,7 @@
 # =============================================
 # Competition OCR Pipeline
 # Detection: YOLO11s @ 1280px (mAP50=0.84)
-# Recognition: ConvNeXt-Tiny + ArcFace (Top1=32.18%, 3483 classes)
+# Recognition: Swin-Tiny @224 + CE (Top1=74.96%, 3483 classes)
 # Output: /saisresult/prediction.json
 # =============================================
 set -e
@@ -10,7 +10,7 @@ set -e
 echo "============================================"
 echo "  Oracle Bone Character OCR"
 echo "  Detector: YOLO11s @ ${IMGSZ:-1280}px"
-echo "  Recognizer: ConvNeXt-Tiny + ArcFace"
+echo "  Recognizer: Swin-Tiny + CE"
 echo "============================================"
 
 # DEVICE: 不强制默认值 — 留给 infer.py 自动检测 GPU。
@@ -23,8 +23,8 @@ else
     echo "DEVICE=auto (will detect GPU via torch.cuda.is_available())"
 fi
 
-export CONF="${CONF:-0.15}"
-export IOU="${IOU:-0.3}"
+export CONF="${CONF:-0.20}"
+export IOU="${IOU:-0.25}"
 export IMGSZ="${IMGSZ:-1280}"
 
 # Competition platform paths

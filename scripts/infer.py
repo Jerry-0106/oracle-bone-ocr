@@ -35,12 +35,12 @@ OUTPUT_JSON = OUTPUT_DIR / "prediction.json"
 # Phase 2: YOLO11s detector trained at 1280px (mAP50=0.84)
 DETECTOR_PATH   = PROJECT_ROOT / "checkpoints" / "yolo11s_det_1280.pt"
 # Phase 4: ConvNeXt-Tiny + ArcFace recognizer (Top1=32.18%, 3483 classes)
-RECOGNIZER_PATH = PROJECT_ROOT / "checkpoints" / "convnext_arcface_best.pt"
+RECOGNIZER_PATH = PROJECT_ROOT / "checkpoints" / "swin_tiny_e25_v12_candidate.pt"
 MAPPING_DIR     = PROJECT_ROOT / "mappings"
 
 # ── inference config ──
-CONF  = float(os.getenv("CONF", "0.15"))
-IOU   = float(os.getenv("IOU", "0.3"))
+CONF  = float(os.getenv("CONF", "0.20"))
+IOU   = float(os.getenv("IOU", "0.25"))
 IMGSZ = int(os.getenv("IMGSZ", "1280"))
 DEVICE_ENV = os.getenv("DEVICE")  # None if not set
 if DEVICE_ENV:
@@ -59,10 +59,10 @@ BATCH_SIZE = 32
 
 
 def load_recognizer():
-    """Load ConvNeXt+ArcFace recognizer and class mappings."""
+    """Load Swin-Tiny recognizer and class mappings."""
     sys.path.insert(0, str(PROJECT_ROOT))
-    from src.recognizer import ArcFaceRecognizer
-    return ArcFaceRecognizer(
+    from src.recognizer import SwinRecognizer
+    return SwinRecognizer(
         str(RECOGNIZER_PATH),
         mapping_dir=str(MAPPING_DIR),
         device=DEVICE,
