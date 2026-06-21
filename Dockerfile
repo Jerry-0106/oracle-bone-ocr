@@ -52,13 +52,9 @@ RUN chmod +x run.sh
 RUN test -f /app/checkpoints/yolo11s_det_1280.pt || \
     (echo "ERROR: Detector checkpoint missing!" && exit 1)
 
-# Recognizer: ConvNeXt-Tiny + ArcFace (Phase 4, Top1=32.18%, 3483 classes)
-RUN test -f /app/checkpoints/convnext_arcface_best.pt || \
+# Recognizer: Swin-Tiny @224 + CE (Top1=74.96%, 3483 classes)
+RUN test -f /app/checkpoints/swin_tiny_e25_v12_candidate.pt || \
     (echo "ERROR: Recognizer checkpoint missing!" && exit 1)
-
-# ArcFace model definition (newly added for C3 fix)
-RUN test -f /app/src/arcface_model.py || \
-    (echo "ERROR: arcface_model.py missing!" && exit 1)
 
 # Mappings (3483-class idx_to_class.json)
 RUN test -f /app/mappings/idx_to_class.json || \
@@ -70,4 +66,4 @@ RUN test -f /app/scripts/infer.py || \
 
 RUN echo "All critical files verified successfully"
 
-ENTRYPOINT ["./run.sh"]
+ENTRYPOINT ["bash", "/app/run.sh"]

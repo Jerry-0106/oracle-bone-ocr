@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================
 # Competition OCR Pipeline
 # Detection: YOLO11s @ 1280px (mAP50=0.84)
