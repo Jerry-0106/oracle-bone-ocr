@@ -39,7 +39,8 @@ RUN pip install --no-cache-dir --default-timeout=300 \
     numpy \
     Pillow \
     ultralytics \
-    tqdm
+    tqdm \
+    timm
 
 # Copy application code and models
 COPY . /app
