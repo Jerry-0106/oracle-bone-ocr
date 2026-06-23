@@ -1,209 +1,122 @@
 # Oracle Bone Character OCR
 
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
-[![Ultralytics](https://img.shields.io/badge/YOLOv8-Ultralytics-0b9bcd.svg)](https://docs.ultralytics.com/)
+Two-stage OCR pipeline for detecting and recognizing ancient Chinese oracle bone characters (甲骨文). Competition-grade system with YOLO detection + Swin Transformer recognition, Dockerized for deployment.
 
-A two-stage OCR system for detecting and recognizing ancient Chinese oracle bone characters (甲骨文).
+## Final Results (v13)
 
-## Features
-
-- **Two-stage OCR pipeline** — YOLOv8n character detection + EfficientNet-B0 recognition
-- **3.1M parameter detector** — lightweight, fast inference at 640×640
-- **1,588 character classes** — trained on HUST-OBC dataset
-- **TTA & multi-scale inference** — configurable test-time augmentation
-- **Competition-ready output** — JSON format with bbox + recognized text
-- **Full training pipeline** — XML conversion, YOLO dataset building, augmentation
-- **Docker support** — ready for containerized deployment
+| Metric | Online |
+|---|---|
+| **Final F1** | **0.495565** |
+| Detection F1 | 0.908696 |
+| Recognition Accuracy | 0.545358 |
+| TP / FP / FN | 4106 / 4129 / 4230 |
+| Precision / Recall | 0.4986 / 0.4926 |
 
 ## Pipeline
 
 ```
-Input Image (甲骨拓片)
-        │
-        ▼
-┌───────────────────┐
-│  YOLOv8n Detector │  ← character-level bounding boxes
-│    640×640        │
-└────────┬──────────┘
-         │  [bbox_1, bbox_2, ..., bbox_n]
-         ▼
-┌───────────────────┐
-│ Character Cropping │  ← padding + shrink to improve IoU
-└────────┬──────────┘
-         │  [crop_1, crop_2, ..., crop_n]
-         ▼
-┌───────────────────┐
-│  EfficientNet-B0   │  ← 1,588-class classification
-│    224×224         │
-└────────┬──────────┘
-         │
-         ▼
-┌───────────────────┐
-│  Recognized Text   │  → {"image_id": [{"bbox": [...], "text": "骨"}]}
-└───────────────────┘
+Input Image → YOLO11s Detector @1280px → Dynamic Crop Padding → Swin-Tiny Recognizer @224px → prediction.json
 ```
 
-## Dataset
+### Detector
+- **Model**: YOLO11s trained at 1280×1280 (mAP50=0.84)
+- **Config**: conf=0.20, iou=0.25, max_det=300, augment=True
+- **Checkpoint**: `checkpoints/yolo11s_det_1280.pt`
 
-This project uses the [HUST-OBC](https://github.com/HUST-OBC/HUST-OBC) dataset — oracle bone rubbing images with character-level bounding box annotations.
+### Recognizer
+- **Model**: Swin-Tiny (`swin_tiny_patch4_window7_224`, 28.3M params)
+- **Loss**: Cross-Entropy with label_smoothing=0.05
+- **Classes**: 3,483 oracle bone characters
+- **Preprocessing**: Resize(256) → CenterCrop(224) → ImageNet normalize
+- **Checkpoint**: `checkpoints/swin_tiny_e30_v13_candidate.pt`
 
-| Item | Detail |
-|------|--------|
-| Source | HUST-OBC (Huazhong Univ. of Science & Technology) |
-| Classes | 1,588 oracle bone characters |
-| Format | Images (.png/.jpg) + XML annotations |
-| Download | See [HUST-OBC GitHub](https://github.com/HUST-OBC/HUST-OBC) |
+### Crop
+- pad = max(8, int(0.08 × max(w, h)))
+- Output bbox = original YOLO bbox (no shrink)
 
-**The dataset is not included in this repository.** Download it and place under `data/`:
+## Key Improvements Over Baseline
 
-```
-data/
-├── raw/            # original images + XML annotations
-├── labels/         # converted YOLO-format labels
-└── yolo/           # train/val split ready for training
-    ├── images/
-    │   ├── train/
-    │   └── val/
-    ├── labels/
-    │   ├── train/
-    │   └── val/
-    └── data.yaml
-```
+| Change | Online F1 Gain |
+|---|---|
+| ConvNeXt+ArcFace → Swin-Tiny+CE | +0.0868 |
+| E20 → E25 extended training | +0.0072 |
+| E25 → E30 continued training | +0.0007 |
+| **Total (v9 → v13)** | **+0.0947** |
 
 ## Project Structure
 
 ```
-├── src/                      # Core pipeline
-│   ├── detector.py           # YOLOv8 detection wrapper
-│   ├── recognizer.py         # EfficientNet recognition wrapper
-│   ├── models.py             # Model architectures (EfficientNet, ResNet)
-│   ├── dataset.py            # PyTorch Dataset classes
-│   ├── utils.py              # Image I/O, bbox utilities
-│   └── visualize.py          # Detection visualization
-├── configs/                  # Inference & training configs
-├── scripts/                  # Training / inference / evaluation
-│   ├── train_detector_v5.py  # Detector training
-│   ├── train_recognition.py  # Recognition training
-│   ├── infer.py              # Single-image inference
-│   ├── infer_competition.py  # Batch inference (competition format)
-│   ├── build_dataset.py      # Build YOLO dataset from XML
-│   ├── convert_xml.py        # XML → YOLO label conversion
-│   └── evaluate.py           # End-to-end evaluation
-├── checkpoints/              # Final model weights
-│   ├── detector_v5.pt        # YOLOv8n (6 MB)
-│   └── recognizer.pt         # EfficientNet-B0 (70 MB)
-├── mappings/                 # Character class index ↔ ID ↔ Chinese
-├── demo/                     # Sample images
-├── Dockerfile                # Containerized deployment
-├── requirements.txt
-└── README.md
+src/                          # Core inference modules
+  recognizer.py               # SwinRecognizer + ArcFaceRecognizer
+scripts/
+  infer.py                    # Full detection + recognition pipeline
+configs/                      # Model configs (baseline)
+mappings/
+  idx_to_class.json           # 3483-class index → character mapping
+reports/
+  final_submission_summary.md # Final v13 submission details
+  online_submissions.md       # v8→v13 submission history
+  experiment_retrospective.md # What worked, what didn't
+  swin_tiny_training_summary.md # Training curves E20→E35
+Dockerfile                    # Docker build (Python 3.10, PyTorch 2.5.1, timm)
+run.sh                        # Container entrypoint
+requirements.txt              # Python dependencies
+evaluate.py                   # Official competition evaluator
 ```
 
-## Installation
+## Reproducing Inference
+
+### Docker (Recommended)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/oracle-bone-ocr.git
-cd oracle-bone-ocr
+# Build
+docker build -t orc-ocr:v13 .
 
+# Run — mounts /saisdata (input images) and /saisresult (output)
+docker run --rm --gpus all \
+  -v /path/to/images:/saisdata \
+  -v /path/to/output:/saisresult \
+  orc-ocr:v13
+```
+
+Output: `/saisresult/prediction.json` — `{"image_id": [{"bbox": [x,y,w,h], "text": "char"}, ...], ...}`
+
+### Local
+
+```bash
 pip install -r requirements.txt
+export INPUT_DIR=/path/to/images OUTPUT_DIR=/path/to/output
+python scripts/infer.py
 ```
 
-For GPU training, ensure CUDA-compatible PyTorch is installed. CPU-only inference is fully supported.
+## Requirements
 
-## Quick Start
+- Python 3.10+
+- PyTorch 2.5.1+ with CUDA 12.4
+- timm >= 1.0.0
+- ultralytics >= 8.0.0
+- opencv-python-headless, numpy, Pillow, tqdm
 
-```bash
-# Detect and recognize characters in a sample rubbing image
-python scripts/infer.py --image demo/sample_rubbing_01.png
+Full list in `requirements.txt`.
 
-# Batch inference on a directory
-python scripts/infer_competition.py --source demo/ --output results/
-```
+## Important Notes
 
-## Training
+- **Model weights are NOT included** in this repository. Download separately:
+  - `checkpoints/yolo11s_det_1280.pt` — YOLO11s detector
+  - `checkpoints/swin_tiny_e30_v13_candidate.pt` — Swin-Tiny E30 recognizer (116 MB)
+- **Datasets are NOT included**. Training data is from the competition organizers.
+- Docker images are hosted on Alibaba Cloud Container Registry (not GitHub).
+- Checkpoints must be placed in `checkpoints/` before building Docker or running inference.
 
-### 1. Prepare the dataset
+## Online Submission Tags
 
-```bash
-# Convert XML annotations to YOLO format
-python scripts/convert_xml.py --xml_dir data/raw/ --output data/labels/
-
-# Build train/val split
-python scripts/build_dataset.py --mode full
-```
-
-### 2. Train the detector
-
-```bash
-python scripts/train_detector_v5.py \
-    --data data/yolo/data.yaml \
-    --epochs 30 \
-    --imgsz 640 \
-    --device cuda
-```
-
-### 3. Train the recognizer
-
-```bash
-python scripts/train_recognition.py \
-    --data_dir data/recognition/ \
-    --epochs 30 \
-    --batch_size 64 \
-    --device cuda
-```
-
-## Inference
-
-```bash
-# Single image
-python scripts/infer.py --image demo/sample_rubbing_01.png
-
-# Full directory (competition format)
-python scripts/infer_competition.py \
-    --source data/test_images/ \
-    --output submission/ \
-    --format json \
-    --save-vis
-```
-
-Output format:
-
-```json
-{
-  "image_id": [
-    {"bbox": [x, y, w, h], "text": "骨"},
-    {"bbox": [x, y, w, h], "text": "文"}
-  ]
-}
-```
-
-## Model Zoo
-
-| Model | Architecture | Params | Size | mAP@50 | Top-1 Acc |
-|-------|-------------|--------|------|--------|-----------|
-| `detector_v5.pt` | YOLOv8n | 3.1M | 6 MB | 0.477 | — |
-| `recognizer.pt` | EfficientNet-B0 | 5.3M | 70 MB | — | competitive |
-
-Pre-trained YOLO backbones auto-download from [Ultralytics](https://docs.ultralytics.com/) on first use.
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Detection | Ultralytics YOLOv8 |
-| Recognition | PyTorch + torchvision (EfficientNet-B0) |
-| Image I/O | OpenCV, Pillow |
-| Training HW | Apple M5 (MPS) / NVIDIA RTX 5070 Ti |
-
-## Future Work
-
-- [ ] Character-level recognition with sequence context (CRF / attention)
-- [ ] Mixed-precision training for larger batch sizes
-- [ ] ONNX export for faster CPU inference
-- [ ] Support for more oracle bone rubbing formats
-- [ ] Streaming inference for large collections
+| Tag | Version | Online F1 |
+|---|---|---|
+| `v9_candidate_conf020_iou025` | ConvNeXt baseline | 0.400821 |
+| `v11_swin_tiny_e20_candidate` | Swin-Tiny E20 | 0.487599 |
+| `v12_swin_tiny_e25_timm_fix` | Swin-Tiny E25 | 0.494840 |
+| `v13_final_online_best` | **Swin-Tiny E30 (final)** | **0.495565** |
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details. Dataset licensing follows HUST-OBC terms.
+This project is for academic and competition use. Checkpoint weights and datasets may have separate licenses from their original sources.

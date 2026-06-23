@@ -15,10 +15,47 @@ venv/
 env/
 .env/
 
-# PyTorch
+# PyTorch / Model Weights (DO NOT COMMIT)
 *.pth
 *.pt
-!checkpoints/*.pt
+*.pkl
+*.onnx
+*.engine
+checkpoints/
+
+# Datasets (DO NOT COMMIT)
+datasets/
+data/
+_data_prep/
+saisresult/
+saisdata/
+
+# Experiment scratch
+_eval/
+_audit_scripts/
+_training/
+demo_output/
+docker_output/
+docker_output_sim/
+_docker_test/
+
+# Temp / cache
+*.cache
+*.tmp
+prediction.json
+reports/*/prediction*.json
+reports/*/cache*
+reports/*/tmp*
+
+# Archives
+*.tar
+*.zip
+*.7z
+*.rar
+*.vhdx
+
+# Claude
+.claude/
 
 # Jupyter
 .ipynb_checkpoints/
