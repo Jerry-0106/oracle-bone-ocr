@@ -4,38 +4,43 @@ ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
 ENV OMP_NUM_THREADS=1
 
-# System dependencies for OpenCV
+# Configure Debian mirror (Tsinghua) for China network
+RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.tuna.tsinghua.edu.cn/debian|g' /etc/apt/sources.list.d/debian.sources && \
+    sed -i 's|http://deb.debian.org/debian-security|http://mirrors.tuna.tsinghua.edu.cn/debian-security|g' /etc/apt/sources.list.d/debian.sources
+
+# System dependencies for OpenCV and PyTorch
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libxcb1 \
     libx11-6 \
     libgomp1 \
     libgl1 \
-    libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
-    libgomp1 \
     libjpeg62-turbo \
     libpng16-16 \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip, set mirror and timeout for reliability
+# Upgrade pip with mirror and timeout
 RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple --upgrade pip
 
-# Install PyTorch CPU-only (competition platform provides GPU separately if needed)
-# Pinned versions to avoid resolution scan + timeout
-RUN pip install --no-cache-dir --default-timeout=120 \
-    torch==2.5.1+cpu torchvision==0.20.1+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
+# Install PyTorch with CUDA 12.4 (compatible with platform driver 12040 / CUDA 12.4)
+# PyTorch 2.5.1 on PyPI = CUDA 12.4 build (no +cu suffix needed on standard pip)
+# DO NOT upgrade to PyTorch 2.6+ (CUDA 12.6+) or 2.12+ (CUDA 13.0)
+RUN pip install --no-cache-dir --default-timeout=300 \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    torch==2.5.1 torchvision==0.20.1
 
-RUN pip install --no-cache-dir --default-timeout=120 \
+# Install remaining dependencies
+RUN pip install --no-cache-dir --default-timeout=300 \
     -i https://pypi.tuna.tsinghua.edu.cn/simple \
     opencv-python-headless \
     numpy \
     Pillow \
     ultralytics \
-    tqdm
+    tqdm \
+    timm
 
 # Copy application code and models
 COPY . /app
@@ -43,9 +48,27 @@ WORKDIR /app
 
 RUN chmod +x run.sh
 
-# Verify critical files exist
-RUN ls -la /app/models/detector.pt /app/models/recognizer.pt && \
-    ls -la /app/ocr_pipeline/mappings/ID_to_chinese.json && \
-    echo "All critical files verified"
+# ── Verify critical files exist ──
+# Detector: YOLO11s @ 1280px (Phase 2, mAP50=0.84)
+RUN test -f /app/checkpoints/yolo11s_det_1280.pt || \
+    (echo "ERROR: Detector checkpoint missing!" && exit 1)
+
+# Recognizer: Swin-Tiny E30 + CE (corrected F1=0.7141, 3483 classes)
+RUN test -f /app/checkpoints/swin_tiny_e30_v13_candidate.pt || \
+    (echo "ERROR: Recognizer checkpoint missing!" && exit 1)
+
+# ArcFace model definition (newly added for C3 fix)
+RUN test -f /app/src/arcface_model.py || \
+    (echo "ERROR: arcface_model.py missing!" && exit 1)
+
+# Mappings (3483-class idx_to_class.json)
+RUN test -f /app/mappings/idx_to_class.json || \
+    (echo "ERROR: idx_to_class.json missing!" && exit 1)
+
+# Inference script
+RUN test -f /app/scripts/infer.py || \
+    (echo "ERROR: infer.py missing!" && exit 1)
+
+RUN echo "All critical files verified successfully"
 
 ENTRYPOINT ["./run.sh"]
