@@ -52,8 +52,8 @@ RUN chmod +x run.sh
 RUN test -f /app/checkpoints/yolo11s_det_1280.pt || \
     (echo "ERROR: Detector checkpoint missing!" && exit 1)
 
-# Recognizer: ConvNeXt-Tiny + ArcFace (Phase 4, Top1=32.18%, 3483 classes)
-RUN test -f /app/checkpoints/convnext_arcface_best.pt || \
+# Recognizer: Swin-Tiny E30 + CE (corrected F1=0.7141, 3483 classes)
+RUN test -f /app/checkpoints/swin_tiny_e30_v13_candidate.pt || \
     (echo "ERROR: Recognizer checkpoint missing!" && exit 1)
 
 # ArcFace model definition (newly added for C3 fix)
